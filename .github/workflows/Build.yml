@@ -1,0 +1,34 @@
+name: Build IPA
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:  # 允许手动触发
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Xcode
+        run: sudo xcode-select -s /Applications/Xcode.app
+
+      - name: Update Config.xcconfig with secrets
+        run: |
+          sed -i '' 's/DEVELOPMENT_TEAM = .*/DEVELOPMENT_TEAM = ${{ secrets.TEAM_ID }}/' Config.xcconfig
+          sed -i '' 's/APP_ID = .*/APP_ID = ${{ secrets.APP_ID }}/' Config.xcconfig
+
+      - name: Build Archive
+        run: |
+          xcodebuild archive -scheme Mango -archivePath build/Mango.xcarchive -allowProvisioningUpdates DEVELOPMENT_TEAM=${{ secrets.TEAM_ID }} PROVISIONING_PROFILE_SPECIFIER=""
+
+      - name: Export IPA
+        run: |
+          xcodebuild -exportArchive -archivePath build/Mango.xcarchive -exportPath build/ -exportOptionsPlist exportOptions.plist -allowProvisioningUpdates
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: Mango.ipa
+          path: build/*.ipa
